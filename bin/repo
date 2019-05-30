@@ -334,15 +334,15 @@ class Repo(object):
                 self.do_create(**kwargs)
             count -= 1
 
-    def do_commit(self, parser=None, name=None, branch=False, **kwargs):
+    def do_commit(self, parser=None, commit_name=None, branch=False, **kwargs):
         '''
         do_commit: create commit, optionally creating changes (if none exit) and
                    optionally creating a branch before
         '''
-        result = None
+        result = {}
         if parser:
             parser.add_argument(
-                '-n', '--name',
+                '-n', '--commmit-name',
                 default=None,
                 help='default="<random-word>"; choose the name of the commit to create')
             parser.add_argument(
@@ -351,17 +351,17 @@ class Repo(object):
                 help='before commit add a branch')
             return
         if branch:
-            return self.do_branch(commit=True, **kwargs)
-        if name is None:
-            name = self.gen_word
+            result = self.do_branch(commit=True, **kwargs)
+        if commit_name is None:
+            commit_name = self.gen_word
         changes = self.git_changes()
         if not changes:
             result = self.do_change(**kwargs)
             changes = self.git_changes()
         changes = '\n'.join(['  '+change for change in changes])
         self.run(f'git add {SRCPATH}')
-        self.run(f'''git commit -m "'{name}' commit message for:\n{changes}"''')
-        return result
+        self.run(f'''git commit -m "'{commit_name}' commit message for:\n{changes}"''')
+        return dict(result, commit_name=commit_name, changes=changes)
 
     def do_conflict(self, parser=None, filepath=None, content=None, **kwargs):
         '''
