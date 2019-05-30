@@ -1,0 +1,447 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+'''
+test repo for git flows
+'''
+
+import os
+import re
+import sys
+import random
+import inspect
+
+from ruamel import yaml
+from argparse import ArgumentParser, RawDescriptionHelpFormatter
+from subprocess import check_call, check_output, Popen, PIPE, CalledProcessError
+
+sys.dont_write_bytecode = True
+
+def clean(obj):
+    '''
+    clean: decode and strip if bytes object provided
+    '''
+    if isinstance(obj, bytes):
+        return obj.decode('utf-8').strip()
+    return obj
+
+REPOPATH = clean(check_output('git rev-parse --show-toplevel', shell=True))
+SCRIPTPATH = os.path.dirname(__file__)
+SCRIPTNAME = os.path.splitext(os.path.basename(__file__))[0]
+SRCPATH = os.path.relpath(os.path.join(REPOPATH, 'src'))
+
+DEFAULT = '\033[0;0m'
+GREEN   = '\033[01;32m'
+RED     = '\033[01;31m'
+
+class NoFilesToModify(Exception):
+    pass
+
+class LinenoGreaterThanNumberOfLines(Exception):
+    def __init__(self, lineno, filepath):
+        msg = f'lineno={lineno} filepath={filepath}'
+        super(LinenoGreaterThanNumberOfLines, self).__init__(msg)
+
+# the following colorize code was taken from here and slighly modified
+# src: https://stackoverflow.com/a/6196103
+def colorize(stdout_color, stderr_color, enabled=True):
+    '''
+    colorize: decorator for functions that print to stdout or stderr
+    '''
+
+    def apply_colorize(func):
+        class ColorWrapper(object):
+            def __init__(self, wrapee, color):
+                self.wrapee = wrapee
+                self.color = color
+            def __getattr__(self, attr):
+                if attr == 'write' and self.wrapee.isatty():
+                    return lambda x: self.wrapee.write(self.color + x + DEFAULT)
+                else:
+                    return getattr(self.wrapee, attr)
+
+        def wrapper(*args, **kwds):
+            old_stdout = sys.stdout
+            old_stderr = sys.stderr
+            sys.stdout = ColorWrapper(old_stdout, stdout_color)
+            sys.stderr = ColorWrapper(old_stderr, stderr_color)
+            try:
+                func(*args, **kwds)
+            finally:
+                sys.stdout = old_stdout
+                sys.stderr = old_stderr
+
+        return wrapper if enabled else func
+
+    return apply_colorize
+
+class Repo(object):
+    '''
+    Repo: class for handling all of the scripts actions
+    '''
+    def __init__(self, home_branch='master'):
+        '''
+        init: takes branch to use as home
+        '''
+        self.home_branch = home_branch
+        methods = inspect.getmembers(self, predicate=inspect.ismethod)
+        self.do_methods = {name[3:]: method for name, method in methods if name.startswith('do_')}
+        self._count = 0 # this MUST come AFTER the above getmembers call
+
+    def execute(self, args):
+        '''
+        execute: function to parse args and execute the appropriate actions
+        '''
+        if SCRIPTNAME in self.do_methods:
+            args = [SCRIPTNAME] + args
+        parser = ArgumentParser(
+            add_help=False)
+        parser.add_argument(
+            '-C', '--config',
+            metavar='FILEPATH',
+            default=f'{SCRIPTNAME}.yml',
+            help='default="%(default)s"; config filepath')
+        ns, rem = parser.parse_known_args(args)
+        try:
+            config = yaml.safe_load(open(ns.config))
+        except FileNotFoundError as er:
+            config = dict()
+        parser = ArgumentParser(
+            parents=[parser],
+            description=__doc__,
+            formatter_class=RawDescriptionHelpFormatter)
+        parser.set_defaults(**config)
+        subparsers = parser.add_subparsers(
+            dest='command',
+            title='commands',
+            description='choose command to run')
+        subparsers.required = True
+        [self.add_command(subparsers, name, method) for name, method in self.do_methods.items()]
+        self.ns = parser.parse_args(rem)
+        self.ns.func(**self.ns.__dict__)
+
+    def add_command(self, subparsers, name, method):
+        '''
+        add_command: adds a subcommand to repo, grabs parser arguments from the do_ function
+        '''
+        parser = subparsers.add_parser(name)
+        parser.set_defaults(func=method)
+        method(parser=parser)
+        return parser
+
+    def run(self, *args, nerf=False, verbose=True, throw=True, do_repr=True, **kwargs):
+        '''
+        run: this wrapper around Popen; returns exitcode, stdout, stderr
+        '''
+        if (verbose or nerf) and args[0]:
+            cmd = repr(args[0]) if do_repr else args[0]
+            print(f'#{self.count}) {cmd}')
+        if nerf:
+            return (None, 'nerfed', 'nerfed')
+
+        process = Popen(
+            shell=kwargs.pop('shell', True),
+            stdout=kwargs.pop('stdout', PIPE),
+            stderr=kwargs.pop('stderr', PIPE),
+            *args, **kwargs)
+        stdout, stderr = process.communicate()
+        stdout = clean(stdout)
+        stderr = clean(stderr)
+        exitcode = process.poll()
+
+        self.print_stdout(stdout, verbose)
+        self.print_stderr(stderr, verbose)
+        if exitcode and throw:
+            raise CalledProcessError(exitcode, args[0])
+        return exitcode, stdout, stderr
+
+    @colorize(GREEN, RED)
+    def print_stdout(self, stdout, verbose):
+        '''
+        print_stdout: colorized function to print stdout
+        '''
+        if stdout and verbose:
+            print(stdout)
+
+    @colorize(GREEN, RED)
+    def print_stderr(self, stderr, verbose):
+        '''
+        print_stderr: colorized function to print stderr
+        '''
+        if stderr and verbose:
+            print(stderr, file=sys.stderr)
+
+    @property
+    def git_home_commit(self):
+        '''
+        git_home_commit: this will print the most recent commit in bin/*
+        '''
+        _, stdout, _ = self.run(
+            'git log -1 --pretty=format:"%H" bin/',
+            verbose=False)
+        return stdout
+
+    @property
+    def git_current_commit(self):
+        '''
+        git_current_sha: this will return current sha
+        '''
+        _, stdout, _ = self.run('git rev-parse HEAD', verbose=False)
+        return stdout
+
+    @property
+    def count(self):
+        '''
+        count: this will increment and then return the _count
+        '''
+        if hasattr(self, '_count'):
+            self._count += 1
+            return self._count
+
+    @property
+    def gen_word(self):
+        '''
+        gen_word: return random word without capitals or apostrophes
+        '''
+        _, stdout, _ = self.run('./word', cwd=SCRIPTPATH, verbose=False)
+        return clean(stdout)
+
+    def gen_words(self, count):
+        '''
+        gen_words: return random words without capitals or apostrophes
+        '''
+        return [self.gen_word for i in range(0, count)]
+
+    def get_lines(self, filepath, count=None):
+        '''
+        get_lines: read file and strip and split the result into an array of lines
+        '''
+        return open(filepath).read().strip().split('\n')
+
+    def git_branches(self, prefix='dev/'):
+        cmd = r'''git for-each-ref --shell --format="%(refname)" refs/heads/ | sed "s/'refs\/heads\/\(.*\)'/\1/"'''
+        _, stdout, _ = self.run(cmd, verbose=False)
+        def test(branch):
+            return prefix is None or branch.startswith(prefix)
+        return [clean(branch) for branch in stdout.split('\n') if test(branch)]
+
+    def gen_filepath(self, maximum, minimum=1, prefix=SRCPATH):
+        '''
+        gen_filepath: return a path with a random(min, max) number nodes, optionall with a prefix
+        '''
+        words = self.gen_words(random.randint(minimum, maximum))
+        path = os.path.join(*words) if words else ''
+        return os.path.relpath(os.path.join(prefix, path))
+
+    def gen_content(self, maximum, minimum=1):
+        '''
+        gen_content: return a random(min, max) number of lines of random words per line
+        '''
+        return '\n'.join(self.gen_words(random.randint(minimum, maximum)))
+
+    def git_changes(self, add=True, srcpath=SRCPATH, verbose=False):
+        '''
+        git_changes: git add srcpath and return the output of git status -s
+        '''
+        if os.path.isdir(srcpath):
+            if add:
+                self.run(f'git add {srcpath}', verbose=verbose)
+            _, stdout, _ = self.run(f'git status -s {srcpath}', verbose=verbose)
+            return stdout.split('\n') if stdout else []
+        return []
+
+    def find_random_filepath(self, srcpath=SRCPATH, count=1, verbose=False):
+        '''
+        find_random_filepath: find and return a random file at the srcpath
+        '''
+        if os.path.isdir(srcpath):
+            _, stdout, _ = self.run(f'find {srcpath} -type f | sort -R --random-source=/dev/urandom | head -{count}', verbose=verbose)
+        return stdout
+
+    def find_filepaths(self, srcpath=SRCPATH, verbose=False):
+        '''
+        find_filepaths: find and return all the files at the srcpath
+        '''
+        if os.path.isdir(srcpath):
+            _, stdout, _ = self.run(f'find {srcpath} -type f', verbose=verbose)
+            return [os.path.relpath(f) for f in stdout.split()] if stdout else []
+        return []
+
+    def do_branch(self, parser=None, name=None, home=False, commit=False, **kwargs):
+        '''
+        do_branch: create a branch, optionally create a commit afterward
+        '''
+        if parser:
+            parser.add_argument(
+                '-n', '--name',
+                default=None,
+                help='default="dev/<random-word>"; choose the name of the branch to create')
+            parser.add_argument(
+                '-H', '--home',
+                action='store_true',
+                help=f'reset to the {self.home_branch} branch')
+            parser.add_argument(
+                '-c', '--commit',
+                action='store_true',
+                help='after branch add a commit')
+            return
+        if home:
+            self.run('git checkout '+self.home_branch)
+        else:
+            if name is None:
+                name = 'dev/' + self.gen_word
+            self.run(f'git checkout -b {name}')
+            if commit:
+                self.do_commit(**kwargs)
+
+    def do_change(self, parser=None, count=None, **kwargs):
+        '''
+        do_change: create a the count number of changes
+        '''
+        if parser:
+            parser.add_argument(
+                '-c', '--count',
+                metavar='INT',
+                default=random.randint(1, 5),
+                type=int,
+                help='default="rand(1, 5)"; number of changes to perform')
+            return
+        if count is None:
+            count = random.randint(1, 5)
+        while count:
+            if len(self.find_filepaths()):
+                index = random.randint(1, 2)
+                {
+                    1: self.do_create,
+                    2: self.do_modify,
+                }[index](**kwargs)
+            else:
+                self.do_create(**kwargs)
+            count -= 1
+
+    def do_commit(self, parser=None, name=None, branch=False, **kwargs):
+        '''
+        do_commit: create commit, optionally creating changes (if none exit) and
+                   optionally creating a branch before
+        '''
+        if parser:
+            parser.add_argument(
+                '-n', '--name',
+                default=None,
+                help='default="<random-word>"; choose the name of the commit to create')
+            parser.add_argument(
+                '-b', '--branch',
+                action='store_true',
+                help='before commit add a branch')
+            return
+        if branch:
+            return self.do_branch(commit=True, **kwargs)
+        if name is None:
+            name = self.gen_word
+        changes = self.git_changes()
+        if not changes:
+            self.do_change(**kwargs)
+            changes = self.git_changes()
+        changes = '\n'.join(['  '+change for change in changes])
+        self.run(f'git add {SRCPATH}')
+        self.run(f'''git commit -m "'{name}' commit message for:\n{changes}"''')
+
+    def do_conflict(self, parser=None, **kwargs):
+        '''
+        do_conflict: create a fork in history that will cause a merge|rebase conflict
+        '''
+        if parser:
+            return
+
+    def do_create(self, parser=None, filepath=None, content=None, **kwargs):
+        '''
+        do_create: create a random filepath with random number of content (words on lines)
+        '''
+        if parser:
+            return
+        if filepath is None:
+            filepath = self.gen_filepath(3)
+        if content is None:
+            content = self.gen_content(3)
+        self.run(f'mkdir -p `dirname {filepath}`')
+        self.run(f'echo "{content}" > {filepath}')
+
+    def do_merge(self, parser, **kwargs):
+        '''
+        do_merge: perform a merge
+        '''
+        if parser:
+            return
+
+    def do_modify(self, parser=None, filepath=None, lineno=None, modify_type='random', **kwargs):
+        modify_cmds = dict(
+            append="sed -i '/^{line}$/a {content}' {filepath}",
+            prepend="sed -i '/^{line}$/i {content}' {filepath}",
+            prefix="sed -i 's/^{line}$/{content} &/' {filepath}",
+            suffix="sed -i '/^{line}/ s/$/ {content}/' {filepath}",
+        )
+        if parser:
+            parser.add_argument(
+                '--type',
+                metavar='TYPE',
+                dest='modify_type',
+                default='random',
+                choices=modify_cmds.keys(),
+                nargs='?',
+                help='default="%(default)s"; choose modify style; choices=[%(choices)s]')
+            return
+        if modify_type == 'random':
+            modify_type = list(modify_cmds.keys())[random.randint(0, len(modify_cmds.keys()) - 1)]
+        cmd = modify_cmds[modify_type]
+        if filepath is None:
+            filepath = self.find_random_filepath()
+        lines = self.get_lines(filepath)
+        if lineno is None:
+            lineno = random.randint(1, len(lines))
+        if lineno > len(lines):
+            raise LinenoGreaterThanNumberOfLines(lineno, filepath)
+        line = lines[lineno - 1]
+        content = self.gen_content(1)
+        self.run(cmd.format(**locals()))
+
+    def do_munge(self, parser=None, **kwargs):
+        '''
+        do_munge: perform a munge
+        '''
+        if parser:
+            return
+
+    def do_rebase(self, parser=None, **kwargs):
+        '''
+        do_rebase: perform a rebase
+        '''
+        if parser:
+            return
+
+    def do_reset(self, parser=None, hard=False, **kwargs):
+        '''
+        do_reset: switch to the home branch and throw away all commits and branches
+        '''
+        if parser:
+            parser.add_argument(
+                '-H', '--hard',
+                action='store_true',
+                help='override default behavior to --hard')
+            return
+        home = self.git_home_commit
+        curr = self.git_current_commit
+        self.run('git checkout ' + self.home_branch)
+        if curr != home:
+            flags = '--hard' if hard else ''
+            self.run(f'git reset {flags} {home}')
+        else:
+            print(f'NO OP: current and home have the same sha1 hash: {home}')
+
+        if hard:
+            if self.git_branches():
+                self.run('''git branch -D $(printf "%s\n" $(git branch) | grep 'dev/')''')
+            self.run('git clean -xfd --exclude=bin/')
+
+if __name__ == '__main__':
+    repo = Repo()
+    repo.execute(sys.argv[1:])

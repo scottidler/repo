@@ -1,0 +1,16 @@
+#!/bin/bash
+
+if [ -n "$DEBUG" ]; then
+    PS4=':${LINENO}+'
+    set -x
+fi
+
+#grab random word
+WORD=`shuf -n1 /usr/share/dict/words`
+
+#trim apostrophes
+WORD="${WORD%\'*}"
+
+#lowercase
+WORD="${WORD,,}"
+echo $WORD

@@ -1,0 +1,23 @@
+#!/bin/bash
+
+REPOROOT=`git rev-parse --show-toplevel`
+
+if [ -n "$DEBUG" ]; then
+    PS4=':${LINENO}+'
+    set -x
+fi
+
+git rev-parse --abbrev-ref HEAD
+
+if [[ "`git rev-parse --abbrev-ref HEAD`" == dev/* ]]; then
+    echo "don't commit to dev/* branches"
+    exit -1
+fi
+
+exit
+
+# add files in bin/ to be committed
+git add bin/
+
+# start commit workflow
+git commit --verbose
