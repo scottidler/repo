@@ -190,6 +190,13 @@ class Repo(object):
         return stdout
 
     @property
+    def git_branch(self):
+        '''
+        '''
+        _, stdout, _ = self.run('rev-parse --abbrev-ref HEAD', verbose=False)
+        return stdout
+
+    @property
     def count(self):
         '''
         count: this will increment and then return the _count
@@ -276,6 +283,7 @@ class Repo(object):
         '''
         do_branch: create a branch, optionally create a commit afterward
         '''
+        result = {}
         if parser:
             parser.add_argument(
                 '-n', '--name',
@@ -296,8 +304,10 @@ class Repo(object):
             if name is None:
                 name = 'dev/' + self.gen_word
             self.run(f'git checkout -b {name}')
-            if commit:
-                return self.do_commit(**kwargs)
+        branchname = self.git_branch
+        if commit:
+            result = self.do_commit(**kwargs)
+        return dict(result, branchname=branchname)
 
     def do_change(self, parser=None, count=None, **kwargs):
         '''
@@ -363,14 +373,15 @@ class Repo(object):
             filepath = self.gen_filepath(3)
         if content is None:
             content = self.gen_content(1)
+        original_branch = self.git_branch
         result = self.do_create(filepath=filepath, content=content)
-        result2 = self.do_commit(**kwargs)
-        self.git_checkout(revision='HEAD^')
+        self.do_branch(commit=True, **kwargs)
+        self.git_checkout(original_branch)
         lines = content.split('\n')
         lines[0] += ' ' + self.gen_word
         content = '\n'.join(lines)
         result3 = self.do_create(filepath=filepath, content=content)
-        self.do_branch(commit=True, **kwargs)
+        self.do_commit(**kwargs)
 
     def do_create(self, parser=None, filepath=None, content=None, **kwargs):
         '''
