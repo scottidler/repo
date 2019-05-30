@@ -193,7 +193,7 @@ class Repo(object):
     def git_branch(self):
         '''
         '''
-        _, stdout, _ = self.run('rev-parse --abbrev-ref HEAD', verbose=False)
+        _, stdout, _ = self.run('git rev-parse --abbrev-ref HEAD', verbose=False)
         return stdout
 
     @property
