@@ -279,14 +279,14 @@ class Repo(object):
             return [os.path.relpath(f) for f in stdout.split()] if stdout else []
         return []
 
-    def do_branch(self, parser=None, name=None, home=False, commit=False, **kwargs):
+    def do_branch(self, parser=None, branch_name=None, home=False, commit=False, **kwargs):
         '''
         do_branch: create a branch, optionally create a commit afterward
         '''
         result = {}
         if parser:
             parser.add_argument(
-                '-n', '--name',
+                '-n', '--branch-name',
                 default=None,
                 help='default="dev/<random-word>"; choose the name of the branch to create')
             parser.add_argument(
@@ -301,13 +301,12 @@ class Repo(object):
         if home:
             self.run('git checkout '+self.home_branch)
         else:
-            if name is None:
-                name = 'dev/' + self.gen_word
-            self.run(f'git checkout -b {name}')
-        branchname = self.git_branch
+            if branch_name is None:
+                branch_name = 'dev/' + self.gen_word
+            self.run(f'git checkout -b {branch_name}')
         if commit:
             result = self.do_commit(**kwargs)
-        return dict(result, branchname=branchname)
+        return dict(result, branch_name=branch_name)
 
     def do_change(self, parser=None, count=None, **kwargs):
         '''
