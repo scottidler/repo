@@ -392,7 +392,7 @@ class Repo(object):
             filepath = self.gen_filepath(3)
         if content is None:
             content = self.gen_content(3)
-        self.run(f'mkdir -p `dirname {filepath}')
+        self.run(f'mkdir -p $(dirname {filepath})')
         self.run(f'echo "{content}" > {filepath}')
         return {
             'filepath': filepath,
