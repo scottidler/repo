@@ -285,7 +285,7 @@ class Repo(object):
         '''
         if os.path.isdir(srcpath or self.srcpath):
             if add:
-                self.run(f'git add {srcpath}', verbose=verbose)
+                self.run(f'git add {srcpath or self.srcpath}', verbose=verbose)
             _, stdout, _ = self.run(f'git status -s {srcpath or self.srcpath}', verbose=verbose)
             return stdout.split('\n') if stdout else []
         return []
