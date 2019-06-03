@@ -312,6 +312,7 @@ class Repo(object):
         '''
         do_change: create a the count number of changes
         '''
+        result = {}
         if parser:
             parser.add_argument(
                 '-c', '--count',
@@ -332,6 +333,7 @@ class Repo(object):
             else:
                 self.do_create(**kwargs)
             count -= 1
+        return result
 
     def do_commit(self, parser=None, commit_name=None, branch=False, **kwargs):
         '''
