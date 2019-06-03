@@ -26,9 +26,15 @@ def clean(obj):
     return obj
 
 REPOPATH = clean(check_output('git rev-parse --show-toplevel', shell=True))
-SCRIPTPATH = os.path.dirname(__file__)
-SCRIPTNAME = os.path.splitext(os.path.basename(__file__))[0]
 SRCPATH = os.path.relpath(os.path.join(REPOPATH, 'src'))
+
+REAL_FILE = os.path.abspath(__file__)
+REAL_NAME = os.path.basename(REAL_FILE)
+REAL_PATH = os.path.dirname(REAL_FILE)
+if os.path.islink(__file__):
+    LINK_FILE = REAL_FILE; REAL_FILE = os.path.abspath(os.readlink(__file__))
+    LINK_NAME = REAL_NAME; REAL_NAME = os.path.basename(REAL_FILE)
+    LINK_PATH = REAL_PATH; REAL_PATH = os.path.dirname(REAL_FILE)
 
 DEFAULT = '\033[0;0m'
 GREEN   = '\033[01;32m'
@@ -92,14 +98,12 @@ class Repo(object):
         '''
         execute: function to parse args and execute the appropriate actions
         '''
-        if SCRIPTNAME in self.do_methods:
-            args = [SCRIPTNAME] + args
         parser = ArgumentParser(
             add_help=False)
         parser.add_argument(
             '-C', '--config',
             metavar='FILEPATH',
-            default=f'{SCRIPTNAME}.yml',
+            default=f'{os.path.splitext(REAL_NAME)[0]}.yml',
             help='default="%(default)s"; config filepath')
         ns, rem = parser.parse_known_args(args)
         try:
@@ -210,7 +214,7 @@ class Repo(object):
         '''
         gen_word: return random word without capitals or apostrophes
         '''
-        _, stdout, _ = self.run('./word', cwd=SCRIPTPATH, verbose=False)
+        _, stdout, _ = self.run('./word', cwd=REAL_PATH, verbose=False)
         return clean(stdout)
 
     def gen_words(self, count):
