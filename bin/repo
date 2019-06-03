@@ -196,7 +196,7 @@ class Repo(object):
 
     @property
     def srcpath(self):
-        return os.path.relpath(f'{self.repopath}/src')
+        return os.path.relpath(f'{self.reporoot}/src')
 
     @property
     def git_home_commit(self):
