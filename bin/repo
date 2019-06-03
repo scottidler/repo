@@ -25,9 +25,6 @@ def clean(obj):
         return obj.decode('utf-8').strip()
     return obj
 
-REPOPATH = clean(check_output('git rev-parse --show-toplevel', shell=True))
-SRCPATH = os.path.relpath(os.path.join(REPOPATH, 'src'))
-
 REAL_FILE = os.path.abspath(__file__)
 REAL_NAME = os.path.basename(REAL_FILE)
 REAL_PATH = os.path.dirname(REAL_FILE)
@@ -176,9 +173,30 @@ class Repo(object):
             print(stderr, file=sys.stderr)
 
     @property
+    def in_repo(self):
+        try:
+            self.run('git rev-parse', verbose=False)
+            return True
+        except:
+            return False
+
+    @property
     def has_commits(self):
-        _, stdout, _ = self.run('git rev-list -n 1 --all', verbose=False)
-        return stdout != ''
+        if self.in_repo:
+            _, stdout, _ = self.run('git rev-list -n 1 --all', verbose=False)
+            return stdout != ''
+        return False
+
+    @property
+    def reporoot(self):
+        if self.in_repo:
+            return clean(check_output('git rev-parse --show-toplevel', shell=True))
+        else:
+            return os.getcwd()
+
+    @property
+    def srcpath(self):
+        return os.path.relpath(f'{self.repopath}/src')
 
     @property
     def git_home_commit(self):
@@ -247,13 +265,13 @@ class Repo(object):
             return prefix is None or branch.startswith(prefix)
         return [clean(branch) for branch in stdout.split('\n') if test(branch)]
 
-    def gen_filepath(self, maximum, minimum=1, prefix=SRCPATH):
+    def gen_filepath(self, maximum, minimum=1, prefix=None):
         '''
         gen_filepath: return a path with a random(min, max) number nodes, optionall with a prefix
         '''
         words = self.gen_words(random.randint(minimum, maximum))
         path = os.path.join(*words) if words else ''
-        return os.path.relpath(os.path.join(prefix, path))
+        return os.path.relpath(os.path.join(prefix or self.srcpath, path))
 
     def gen_content(self, maximum, minimum=1):
         '''
@@ -261,14 +279,14 @@ class Repo(object):
         '''
         return '\n'.join(self.gen_words(random.randint(minimum, maximum)))
 
-    def git_changes(self, add=True, srcpath=SRCPATH, verbose=False):
+    def git_changes(self, add=True, srcpath=None, verbose=False):
         '''
         git_changes: git add srcpath and return the output of git status -s
         '''
-        if os.path.isdir(srcpath):
+        if os.path.isdir(srcpath or self.srcpath):
             if add:
                 self.run(f'git add {srcpath}', verbose=verbose)
-            _, stdout, _ = self.run(f'git status -s {srcpath}', verbose=verbose)
+            _, stdout, _ = self.run(f'git status -s {srcpath or self.srcpath}', verbose=verbose)
             return stdout.split('\n') if stdout else []
         return []
 
@@ -277,20 +295,20 @@ class Repo(object):
         if verbose:
             print(stdout)
 
-    def find_random_filepath(self, srcpath=SRCPATH, count=1, verbose=False):
+    def find_random_filepath(self, srcpath=None, count=1, verbose=False):
         '''
         find_random_filepath: find and return a random file at the srcpath
         '''
-        if os.path.isdir(srcpath):
-            _, stdout, _ = self.run(f'find {srcpath} -type f | sort -R --random-source=/dev/urandom | head -{count}', verbose=verbose)
+        if os.path.isdir(srcpath or self.srcpath):
+            _, stdout, _ = self.run(f'find {srcpath or self.srcpath} -type f | sort -R --random-source=/dev/urandom | head -{count}', verbose=verbose)
         return stdout
 
-    def find_filepaths(self, srcpath=SRCPATH, verbose=False):
+    def find_filepaths(self, srcpath=None, verbose=False):
         '''
         find_filepaths: find and return all the files at the srcpath
         '''
-        if os.path.isdir(srcpath):
-            _, stdout, _ = self.run(f'find {srcpath} -type f', verbose=verbose)
+        if os.path.isdir(srcpath or self.srcpath):
+            _, stdout, _ = self.run(f'find {srcpath or self.srcpath} -type f', verbose=verbose)
             return [os.path.relpath(f) for f in stdout.split()] if stdout else []
         return []
 
@@ -375,7 +393,7 @@ class Repo(object):
             result = self.do_change(**kwargs)
             changes = self.git_changes()
         changes = '\n'.join(['  '+change for change in changes])
-        self.run(f'git add {SRCPATH}')
+        self.run(f'git add {self.srcpath}')
         self.run(f'''git commit -m "'{commit_name}' commit message for:\n{changes}"''')
         return dict(result, commit_name=commit_name, changes=changes)
 
