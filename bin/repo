@@ -176,29 +176,40 @@ class Repo(object):
             print(stderr, file=sys.stderr)
 
     @property
+    def has_commits(self):
+        _, stdout, _ = self.run('git rev-list -n 1 --all', verbose=False)
+        return stdout != ''
+
+    @property
     def git_home_commit(self):
         '''
         git_home_commit: this will print the most recent commit in bin/*
         '''
-        _, stdout, _ = self.run(
-            'git log -1 --pretty=format:"%H" bin/',
-            verbose=False)
-        return stdout
+        if self.has_commits:
+            _, stdout, _ = self.run('git log -1 --pretty=format:"%H" bin/', verbose=False)
+            return stdout
+        return 'UNKNOWN'
 
     @property
     def git_current_commit(self):
         '''
         git_current_sha: this will return current sha
         '''
-        _, stdout, _ = self.run('git rev-parse HEAD', verbose=False)
-        return stdout
+        if self.has_commits:
+            _, stdout, _ = self.run('git rev-parse HEAD', verbose=False)
+            return stdout
+        else:
+            return 'UNKNOWN'
 
     @property
     def git_branch(self):
         '''
         '''
-        _, stdout, _ = self.run('git rev-parse --abbrev-ref HEAD', verbose=False)
-        return stdout
+        if self.has_commits:
+            _, stdout, _ = self.run('git rev-parse --abbrev-ref HEAD', verbose=False)
+            return stdout
+        else:
+            return 'UNKNOWN'
 
     @property
     def count(self):
