@@ -382,11 +382,17 @@ class Repo(object):
         result3 = self.do_create(filepath=filepath, content=content)
         self.do_commit(**kwargs)
 
-    def do_create(self, parser=None, filepath=None, content=None, **kwargs):
+    def do_create(self, parser=None, count=None, filepath=None, content=None, **kwargs):
         '''
         do_create: create a random filepath with random number of content (words on lines)
         '''
         if parser:
+            parser.add_argument(
+                '-c', '--count',
+                metavar='INT',
+                default=random.randint(1, 5),
+                type=int,
+                help='default="rand(1, 5)"; number of changes to perform')
             return
         if filepath is None:
             filepath = self.gen_filepath(3)
