@@ -199,16 +199,6 @@ class Repo(object):
         return os.path.relpath(f'{self.reporoot}/src')
 
     @property
-    def git_home_commit(self):
-        '''
-        git_home_commit: this will print the most recent commit in bin/*
-        '''
-        if self.has_commits:
-            _, stdout, _ = self.run('git log -1 --pretty=format:"%H" bin/', verbose=False)
-            return stdout
-        return 'UNKNOWN'
-
-    @property
     def git_current_commit(self):
         '''
         git_current_sha: this will return current sha
@@ -491,30 +481,6 @@ class Repo(object):
         '''
         if parser:
             return
-
-    def do_reset(self, parser=None, hard=False, **kwargs):
-        '''
-        do_reset: switch to the home branch and throw away all commits and branches
-        '''
-        if parser:
-            parser.add_argument(
-                '-H', '--hard',
-                action='store_true',
-                help='override default behavior to --hard')
-            return
-        home = self.git_home_commit
-        curr = self.git_current_commit
-        self.run('git checkout ' + self.home_branch)
-        if curr != home:
-            flags = '--hard' if hard else ''
-            self.run(f'git reset {flags} {home}')
-        else:
-            print(f'NO OP: current and home have the same sha1 hash: {home}')
-
-        if hard:
-            if self.git_branches():
-                self.run('''git branch -D $(printf "%s\n" $(git branch) | grep 'dev/')''')
-            self.run('git clean -xfd --exclude=bin/')
 
 if __name__ == '__main__':
     repo = Repo()
