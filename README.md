@@ -1,2 +1,2 @@
 # repo
-repo for demonstrating git flows
+git repo for demonstrating git flows
