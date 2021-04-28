@@ -10,6 +10,7 @@ import re
 import sys
 import random
 import inspect
+import tempfile
 
 from ruamel import yaml
 from argparse import ArgumentParser, RawDescriptionHelpFormatter
@@ -302,6 +303,23 @@ class Repo(object):
             return [os.path.relpath(f) for f in stdout.split()] if stdout else []
         return []
 
+    def do_init(self, parser=None, repo_name=None, **kwargs):
+        '''
+        do_init: create a repo
+        '''
+        result = {}
+        if parser:
+            parser.add_argument(
+                '-n', '--repo-name',
+                default=tempfile.mktemp()[5:],
+                help='default="%(default)s"; specify repo to init',
+            )
+            return
+        if os.path.exists(repo_name):
+            self.run(f'rm -rf {repo_name}')
+        self.run(f'mkdir -p {repo_name}')
+        self.run(f'cd {repo_name} && git init')
+
     def do_branch(self, parser=None, branch_name=None, home=False, commit=False, **kwargs):
         '''
         do_branch: create a branch, optionally create a commit afterward
@@ -366,7 +384,7 @@ class Repo(object):
         result = {}
         if parser:
             parser.add_argument(
-                '-n', '--commmit-name',
+                '-n', '--commit-name',
                 default=None,
                 help='default="<random-word>"; choose the name of the commit to create')
             parser.add_argument(
