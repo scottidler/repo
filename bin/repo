@@ -18,6 +18,9 @@ from subprocess import check_call, check_output, Popen, PIPE, CalledProcessError
 
 sys.dont_write_bytecode = True
 
+REAL_NAME = os.path.basename(__file__)
+BIN_PATH = os.path.dirname(__file__)
+
 def clean(obj):
     '''
     clean: decode and strip if bytes object provided
@@ -25,14 +28,6 @@ def clean(obj):
     if isinstance(obj, bytes):
         return obj.decode('utf-8').strip()
     return obj
-
-REAL_FILE = os.path.abspath(__file__)
-REAL_NAME = os.path.basename(REAL_FILE)
-REAL_PATH = os.path.dirname(REAL_FILE)
-if os.path.islink(__file__):
-    LINK_FILE = REAL_FILE; REAL_FILE = os.path.abspath(os.readlink(__file__))
-    LINK_NAME = REAL_NAME; REAL_NAME = os.path.basename(REAL_FILE)
-    LINK_PATH = REAL_PATH; REAL_PATH = os.path.dirname(REAL_FILE)
 
 DEFAULT = '\033[0;0m'
 GREEN   = '\033[01;32m'
@@ -234,7 +229,7 @@ class Repo(object):
         '''
         gen_word: return random word without capitals or apostrophes
         '''
-        _, stdout, _ = self.run('./word', cwd=REAL_PATH, verbose=False)
+        _, stdout, _ = self.run('./word', cwd=BIN_PATH, verbose=False)
         return clean(stdout)
 
     def gen_words(self, count):

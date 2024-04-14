@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 if [ -n "$DEBUG" ]; then
     PS4=':${LINENO}+'
@@ -6,7 +6,7 @@ if [ -n "$DEBUG" ]; then
 fi
 
 #grab random word
-WORD=`shuf -n1 /usr/share/dict/words`
+WORD=$(shuf -n1 /usr/share/dict/words)
 
 #trim apostrophes
 WORD="${WORD%\'*}"
