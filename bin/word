@@ -1,12 +1,22 @@
 #!/usr/bin/env bash
 
 if [ -n "$DEBUG" ]; then
-    PS4=':${LINENO}+'
-    set -x
+	PS4=':${LINENO}+'
+	set -x
+fi
+
+# Determine the path to the words file based on the OS
+if [ -f "/etc/words" ]; then
+	WORDS_FILE="/etc/words"
+elif [ -f "/usr/share/dict/words" ]; then
+	WORDS_FILE="/usr/share/dict/words"
+else
+	echo "Error: Dictionary file not found."
+	exit 1
 fi
 
 #grab random word
-WORD=$(shuf -n1 /usr/share/dict/words)
+WORD=$(shuf -n1 $WORDS_FILE)
 
 #trim apostrophes
 WORD="${WORD%\'*}"
