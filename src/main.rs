@@ -11,9 +11,13 @@ use uuid::Uuid;
 
 static INIT: Once = Once::new();
 
+// Get the git version from build.rs
+const GIT_VERSION: &str = env!("GIT_DESCRIBE");
+
 #[derive(Parser)]
 #[command(name = "repo")]
 #[command(about = "A Git workflow simulation tool")]
+#[command(version = GIT_VERSION)]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,
