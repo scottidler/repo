@@ -87,9 +87,6 @@ pub enum Commands {
         /// File to create conflict in
         #[arg(short, long)]
         filename: Option<String>,
-        /// Initial content
-        #[arg(short, long)]
-        content: Option<String>,
         /// Type of conflict to create
         #[arg(short = 't', long, default_value = "content")]
         conflict_type: ConflictType,
@@ -449,35 +446,42 @@ impl RepoTool {
         Ok(())
     }
 
-    pub fn conflict(&mut self, filepath: Option<String>, content: Option<String>, conflict_type: ConflictType) -> Result<()> {
+    pub fn conflict(&mut self, filepath: Option<String>, conflict_type: ConflictType) -> Result<()> {
         info!("Creating {} conflict scenario", format!("{:?}", conflict_type).to_lowercase());
 
         match conflict_type {
-            ConflictType::Content => self.create_content_conflict(filepath, content),
-            ConflictType::DeleteModify => self.create_delete_modify_conflict(filepath, content),
-            ConflictType::Rename => self.create_rename_conflict(filepath, content),
-            ConflictType::AddAdd => self.create_add_add_conflict(filepath, content),
-            ConflictType::Binary => self.create_binary_conflict(filepath, content),
-            ConflictType::Mode => self.create_mode_conflict(filepath, content),
-            ConflictType::Whitespace => self.create_whitespace_conflict(filepath, content),
-            ConflictType::Case => self.create_case_conflict(filepath, content),
-            ConflictType::Structural => self.create_structural_conflict(filepath, content),
+            ConflictType::Content => self.create_content_conflict(filepath),
+            ConflictType::DeleteModify => self.create_delete_modify_conflict(filepath),
+            ConflictType::Rename => self.create_rename_conflict(filepath),
+            ConflictType::AddAdd => self.create_add_add_conflict(filepath),
+            ConflictType::Binary => self.create_binary_conflict(filepath),
+            ConflictType::Mode => self.create_mode_conflict(filepath),
+            ConflictType::Whitespace => self.create_whitespace_conflict(filepath),
+            ConflictType::Case => self.create_case_conflict(filepath),
+            ConflictType::Structural => self.create_structural_conflict(filepath),
         }
     }
 
-    fn create_content_conflict(&mut self, filepath: Option<String>, content: Option<String>) -> Result<()> {
-        let path = filepath.unwrap_or_else(|| {
-            self.gen_filepath(3, 1, None).to_string_lossy().to_string()
-        });
-        let initial_content = content.unwrap_or_else(|| self.gen_content(3, 1));
+    fn create_content_conflict(&mut self, filepath: Option<String>) -> Result<()> {
+        let (path, initial_content) = if let Some(fp) = filepath {
+            // If filename is provided, create new file with generated content
+            let content = self.gen_content(3, 1);
+            self.create_file(&fp, &content)?;
+            self.git_add_src()?;
+            self.run_git(&["commit", "-m", "Initial content for conflict"])?;
+            (fp, content)
+        } else {
+            // If no filename provided, use random existing file
+            let existing_file = self.get_random_file()?.ok_or_else(|| {
+                eyre::eyre!("No existing files found. Create some files first or specify a filename.")
+            })?;
+            let content = fs::read_to_string(&existing_file)
+                .wrap_err_with(|| format!("Failed to read existing file: {:?}", existing_file))?;
+            (existing_file.strip_prefix(&self.get_src_path()?).unwrap().to_string_lossy().to_string(), content)
+        };
 
         // Get current branch
         let original_branch = self.get_current_branch()?;
-
-        // Create initial file and commit
-        self.create_file(&path, &initial_content)?;
-        self.git_add_src()?;
-        self.run_git(&["commit", "-m", "Initial content for conflict"])?;
 
         // Create new branch and modify the file
         let conflict_branch = format!("conflict-{}", self.gen_word());
@@ -496,23 +500,31 @@ impl RepoTool {
         self.run_git(&["commit", "-m", "Conflicting content on original branch"])?;
 
         println!("Created content conflict scenario between {} and {}", original_branch, conflict_branch);
+        println!("File: {}", path);
         println!("To see conflict: git merge {}", conflict_branch);
 
         Ok(())
     }
 
-    fn create_delete_modify_conflict(&mut self, filepath: Option<String>, content: Option<String>) -> Result<()> {
-        let path = filepath.unwrap_or_else(|| {
-            self.gen_filepath(3, 1, None).to_string_lossy().to_string()
-        });
-        let initial_content = content.unwrap_or_else(|| self.gen_content(3, 1));
+    fn create_delete_modify_conflict(&mut self, filepath: Option<String>) -> Result<()> {
+        let (path, initial_content) = if let Some(fp) = filepath {
+            // If filename is provided, create new file with generated content
+            let content = self.gen_content(3, 1);
+            self.create_file(&fp, &content)?;
+            self.git_add_src()?;
+            self.run_git(&["commit", "-m", "Initial file for delete/modify conflict"])?;
+            (fp, content)
+        } else {
+            // If no filename provided, use random existing file
+            let existing_file = self.get_random_file()?.ok_or_else(|| {
+                eyre::eyre!("No existing files found. Create some files first or specify a filename.")
+            })?;
+            let content = fs::read_to_string(&existing_file)
+                .wrap_err_with(|| format!("Failed to read existing file: {:?}", existing_file))?;
+            (existing_file.strip_prefix(&self.get_src_path()?).unwrap().to_string_lossy().to_string(), content)
+        };
 
         let original_branch = self.get_current_branch()?;
-
-        // Create initial file and commit
-        self.create_file(&path, &initial_content)?;
-        self.git_add_src()?;
-        self.run_git(&["commit", "-m", "Initial file for delete/modify conflict"])?;
 
         // Create new branch and delete the file
         let conflict_branch = format!("delete-{}", self.gen_word());
@@ -532,23 +544,31 @@ impl RepoTool {
         self.run_git(&["commit", "-m", "Modified file on original branch"])?;
 
         println!("Created delete/modify conflict scenario between {} and {}", original_branch, conflict_branch);
+        println!("File: {}", path);
         println!("To see conflict: git merge {}", conflict_branch);
 
         Ok(())
     }
 
-    fn create_rename_conflict(&mut self, filepath: Option<String>, content: Option<String>) -> Result<()> {
-        let original_path = filepath.unwrap_or_else(|| {
-            self.gen_filepath(3, 1, None).to_string_lossy().to_string()
-        });
-        let initial_content = content.unwrap_or_else(|| self.gen_content(3, 1));
+    fn create_rename_conflict(&mut self, filepath: Option<String>) -> Result<()> {
+        let (original_path, _initial_content) = if let Some(fp) = filepath {
+            // If filename is provided, create new file with generated content
+            let content = self.gen_content(3, 1);
+            self.create_file(&fp, &content)?;
+            self.git_add_src()?;
+            self.run_git(&["commit", "-m", "Initial file for rename conflict"])?;
+            (fp, content)
+        } else {
+            // If no filename provided, use random existing file
+            let existing_file = self.get_random_file()?.ok_or_else(|| {
+                eyre::eyre!("No existing files found. Create some files first or specify a filename.")
+            })?;
+            let content = fs::read_to_string(&existing_file)
+                .wrap_err_with(|| format!("Failed to read existing file: {:?}", existing_file))?;
+            (existing_file.strip_prefix(&self.get_src_path()?).unwrap().to_string_lossy().to_string(), content)
+        };
 
         let original_branch = self.get_current_branch()?;
-
-        // Create initial file and commit
-        self.create_file(&original_path, &initial_content)?;
-        self.git_add_src()?;
-        self.run_git(&["commit", "-m", "Initial file for rename conflict"])?;
 
         // Create new branch and rename file one way
         let conflict_branch = format!("rename-{}", self.gen_word());
@@ -580,11 +600,11 @@ impl RepoTool {
         Ok(())
     }
 
-    fn create_add_add_conflict(&mut self, filepath: Option<String>, content: Option<String>) -> Result<()> {
+    fn create_add_add_conflict(&mut self, filepath: Option<String>) -> Result<()> {
         let path = filepath.unwrap_or_else(|| {
             format!("shared-{}.txt", self.gen_word())
         });
-        let base_content = content.unwrap_or_else(|| "Base content".to_string());
+        let base_content = "Base content".to_string();
 
         let original_branch = self.get_current_branch()?;
 
@@ -611,7 +631,7 @@ impl RepoTool {
         Ok(())
     }
 
-    fn create_binary_conflict(&mut self, filepath: Option<String>, _content: Option<String>) -> Result<()> {
+    fn create_binary_conflict(&mut self, filepath: Option<String>) -> Result<()> {
         let path = filepath.unwrap_or_else(|| {
             format!("binary-{}.bin", self.gen_word())
         });
@@ -649,13 +669,11 @@ impl RepoTool {
         Ok(())
     }
 
-    fn create_mode_conflict(&mut self, filepath: Option<String>, content: Option<String>) -> Result<()> {
+    fn create_mode_conflict(&mut self, filepath: Option<String>) -> Result<()> {
         let path = filepath.unwrap_or_else(|| {
             format!("script-{}.sh", self.gen_word())
         });
-        let initial_content = content.unwrap_or_else(|| {
-            format!("#!/bin/bash\necho \"Hello from {}\"\n", self.gen_word())
-        });
+        let initial_content = format!("#!/bin/bash\necho \"Hello from {}\"\n", self.gen_word());
 
         let original_branch = self.get_current_branch()?;
 
@@ -696,13 +714,11 @@ impl RepoTool {
         Ok(())
     }
 
-    fn create_whitespace_conflict(&mut self, filepath: Option<String>, content: Option<String>) -> Result<()> {
+    fn create_whitespace_conflict(&mut self, filepath: Option<String>) -> Result<()> {
         let path = filepath.unwrap_or_else(|| {
             format!("whitespace-{}.txt", self.gen_word())
         });
-        let base_content = content.unwrap_or_else(|| {
-            "Line 1\nLine 2\nLine 3".to_string()
-        });
+        let base_content = "Line 1\nLine 2\nLine 3".to_string();
 
         let original_branch = self.get_current_branch()?;
 
@@ -740,11 +756,11 @@ impl RepoTool {
         Ok(())
     }
 
-    fn create_case_conflict(&mut self, filepath: Option<String>, content: Option<String>) -> Result<()> {
+    fn create_case_conflict(&mut self, filepath: Option<String>) -> Result<()> {
         let base_name = filepath.unwrap_or_else(|| {
             format!("CaseFile-{}.txt", self.gen_word())
         });
-        let initial_content = content.unwrap_or_else(|| self.gen_content(3, 1));
+        let initial_content = self.gen_content(3, 1);
 
         let original_branch = self.get_current_branch()?;
 
@@ -792,11 +808,11 @@ impl RepoTool {
         Ok(())
     }
 
-    fn create_structural_conflict(&mut self, filepath: Option<String>, content: Option<String>) -> Result<()> {
+    fn create_structural_conflict(&mut self, filepath: Option<String>) -> Result<()> {
         let path = filepath.unwrap_or_else(|| {
             "shared/data.txt".to_string()
         });
-        let initial_content = content.unwrap_or_else(|| self.gen_content(3, 1));
+        let initial_content = self.gen_content(3, 1);
 
         let original_branch = self.get_current_branch()?;
 
@@ -1011,7 +1027,7 @@ fn main() -> Result<()> {
         Commands::Branch { name, force: _, delete: _ } => tool.branch(name, false, false), // Placeholder for home/commit logic
         Commands::Change { count } => tool.change(count),
         Commands::Commit { message, amend: _ } => tool.commit(message, false), // Placeholder for branch logic
-        Commands::Conflict { filename, content, conflict_type } => tool.conflict(filename, content, conflict_type),
+        Commands::Conflict { filename, conflict_type } => tool.conflict(filename, conflict_type),
         Commands::Create { count, filename, content } => tool.create(count, filename, content),
         Commands::Modify { filepath, lineno, modify_type } => {
             let modify_type_enum = match modify_type.as_str() {
@@ -1213,7 +1229,7 @@ mod tests {
     fn test_conflict_creation() {
         let (_temp_dir, mut tool) = setup_git_repo_with_commit();  // Use setup with commit
 
-        let result = tool.conflict(Some("conflict-file.txt".to_string()), Some("initial content".to_string()), ConflictType::Content);
+        let result = tool.conflict(Some("conflict-file.txt".to_string()), ConflictType::Content);
         assert!(result.is_ok());
 
         // Verify branches exist
