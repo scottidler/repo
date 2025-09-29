@@ -2,6 +2,7 @@
 name = "repo"
 version = "0.2.0"
 edition = "2024"
+build = "build.rs"
 
 [dependencies]
 clap = { version = "4.5.41", features = ["derive"] }
