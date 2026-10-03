@@ -186,10 +186,18 @@ impl RepoTool {
         // Fallback to a small built-in word list
         warn!("No system word file found, using built-in words");
         Ok(vec![
-            "apple".to_string(), "banana".to_string(), "cherry".to_string(),
-            "dog".to_string(), "elephant".to_string(), "fox".to_string(),
-            "grape".to_string(), "house".to_string(), "ice".to_string(),
-            "jungle".to_string(), "kite".to_string(), "lemon".to_string(),
+            "apple".to_string(),
+            "banana".to_string(),
+            "cherry".to_string(),
+            "dog".to_string(),
+            "elephant".to_string(),
+            "fox".to_string(),
+            "grape".to_string(),
+            "house".to_string(),
+            "ice".to_string(),
+            "jungle".to_string(),
+            "kite".to_string(),
+            "lemon".to_string(),
         ])
     }
 
@@ -292,8 +300,7 @@ impl RepoTool {
 
     fn ensure_src_dir(&mut self) -> Result<PathBuf> {
         let src_path = self.get_src_path()?;
-        fs::create_dir_all(&src_path)
-            .wrap_err_with(|| format!("Failed to create src directory: {:?}", src_path))?;
+        fs::create_dir_all(&src_path).wrap_err_with(|| format!("Failed to create src directory: {:?}", src_path))?;
         Ok(src_path)
     }
 
@@ -395,11 +402,7 @@ impl RepoTool {
     }
 
     pub fn change(&mut self, count: u32) -> Result<()> {
-        let actual_count = if count == 0 {
-            rand::rng().random_range(1..=5)
-        } else {
-            count
-        };
+        let actual_count = if count == 0 { rand::rng().random_range(1..=5) } else { count };
 
         info!("Creating {} changes", actual_count);
 
@@ -447,7 +450,10 @@ impl RepoTool {
     }
 
     pub fn conflict(&mut self, filepath: Option<String>, conflict_type: ConflictType) -> Result<()> {
-        info!("Creating {} conflict scenario", format!("{:?}", conflict_type).to_lowercase());
+        info!(
+            "Creating {} conflict scenario",
+            format!("{:?}", conflict_type).to_lowercase()
+        );
 
         match conflict_type {
             ConflictType::Content => self.create_content_conflict(filepath),
@@ -477,7 +483,14 @@ impl RepoTool {
             })?;
             let content = fs::read_to_string(&existing_file)
                 .wrap_err_with(|| format!("Failed to read existing file: {:?}", existing_file))?;
-            (existing_file.strip_prefix(&self.get_src_path()?).unwrap().to_string_lossy().to_string(), content)
+            (
+                existing_file
+                    .strip_prefix(&self.get_src_path()?)
+                    .unwrap()
+                    .to_string_lossy()
+                    .to_string(),
+                content,
+            )
         };
 
         // Get current branch
@@ -499,7 +512,10 @@ impl RepoTool {
         self.git_add_src()?;
         self.run_git(&["commit", "-m", "Conflicting content on original branch"])?;
 
-        println!("Created content conflict scenario between {} and {}", original_branch, conflict_branch);
+        println!(
+            "Created content conflict scenario between {} and {}",
+            original_branch, conflict_branch
+        );
         println!("File: {}", path);
         println!("To see conflict: git merge {}", conflict_branch);
 
@@ -521,7 +537,14 @@ impl RepoTool {
             })?;
             let content = fs::read_to_string(&existing_file)
                 .wrap_err_with(|| format!("Failed to read existing file: {:?}", existing_file))?;
-            (existing_file.strip_prefix(&self.get_src_path()?).unwrap().to_string_lossy().to_string(), content)
+            (
+                existing_file
+                    .strip_prefix(&self.get_src_path()?)
+                    .unwrap()
+                    .to_string_lossy()
+                    .to_string(),
+                content,
+            )
         };
 
         let original_branch = self.get_current_branch()?;
@@ -543,7 +566,10 @@ impl RepoTool {
         self.git_add_src()?;
         self.run_git(&["commit", "-m", "Modified file on original branch"])?;
 
-        println!("Created delete/modify conflict scenario between {} and {}", original_branch, conflict_branch);
+        println!(
+            "Created delete/modify conflict scenario between {} and {}",
+            original_branch, conflict_branch
+        );
         println!("File: {}", path);
         println!("To see conflict: git merge {}", conflict_branch);
 
@@ -565,7 +591,14 @@ impl RepoTool {
             })?;
             let content = fs::read_to_string(&existing_file)
                 .wrap_err_with(|| format!("Failed to read existing file: {:?}", existing_file))?;
-            (existing_file.strip_prefix(&self.get_src_path()?).unwrap().to_string_lossy().to_string(), content)
+            (
+                existing_file
+                    .strip_prefix(&self.get_src_path()?)
+                    .unwrap()
+                    .to_string_lossy()
+                    .to_string(),
+                content,
+            )
         };
 
         let original_branch = self.get_current_branch()?;
@@ -579,7 +612,8 @@ impl RepoTool {
         let old_full_path = src_path.join(&original_path);
         let new_full_path1 = src_path.join(&new_name1);
 
-        fs::rename(&old_full_path, &new_full_path1).wrap_err_with(|| format!("Failed to rename file from {:?} to {:?}", old_full_path, new_full_path1))?;
+        fs::rename(&old_full_path, &new_full_path1)
+            .wrap_err_with(|| format!("Failed to rename file from {:?} to {:?}", old_full_path, new_full_path1))?;
         self.git_add_src()?;
         self.run_git(&["commit", "-m", "Renamed file on conflict branch"])?;
 
@@ -589,21 +623,30 @@ impl RepoTool {
         let old_full_path2 = src_path.join(&original_path);
         let new_full_path2 = src_path.join(&new_name2);
 
-        fs::rename(&old_full_path2, &new_full_path2).wrap_err_with(|| format!("Failed to rename file from {:?} to {:?}", old_full_path2, new_full_path2))?;
+        fs::rename(&old_full_path2, &new_full_path2).wrap_err_with(|| {
+            format!(
+                "Failed to rename file from {:?} to {:?}",
+                old_full_path2, new_full_path2
+            )
+        })?;
         self.git_add_src()?;
         self.run_git(&["commit", "-m", "Renamed file differently on original branch"])?;
 
-        println!("Created rename conflict scenario between {} and {}", original_branch, conflict_branch);
-        println!("File renamed to '{}' on {} and '{}' on {}", new_name1, conflict_branch, new_name2, original_branch);
+        println!(
+            "Created rename conflict scenario between {} and {}",
+            original_branch, conflict_branch
+        );
+        println!(
+            "File renamed to '{}' on {} and '{}' on {}",
+            new_name1, conflict_branch, new_name2, original_branch
+        );
         println!("To see conflict: git merge {}", conflict_branch);
 
         Ok(())
     }
 
     fn create_add_add_conflict(&mut self, filepath: Option<String>) -> Result<()> {
-        let path = filepath.unwrap_or_else(|| {
-            format!("shared-{}.txt", self.gen_word())
-        });
+        let path = filepath.unwrap_or_else(|| format!("shared-{}.txt", self.gen_word()));
         let base_content = "Base content".to_string();
 
         let original_branch = self.get_current_branch()?;
@@ -624,7 +667,10 @@ impl RepoTool {
         self.git_add_src()?;
         self.run_git(&["commit", "-m", "Added same file on original branch"])?;
 
-        println!("Created add/add conflict scenario between {} and {}", original_branch, conflict_branch);
+        println!(
+            "Created add/add conflict scenario between {} and {}",
+            original_branch, conflict_branch
+        );
         println!("Same file '{}' added with different content on both branches", path);
         println!("To see conflict: git merge {}", conflict_branch);
 
@@ -632,9 +678,7 @@ impl RepoTool {
     }
 
     fn create_binary_conflict(&mut self, filepath: Option<String>) -> Result<()> {
-        let path = filepath.unwrap_or_else(|| {
-            format!("binary-{}.bin", self.gen_word())
-        });
+        let path = filepath.unwrap_or_else(|| format!("binary-{}.bin", self.gen_word()));
 
         let original_branch = self.get_current_branch()?;
 
@@ -642,7 +686,8 @@ impl RepoTool {
         let binary_data1: Vec<u8> = (0..50).map(|i| (i * 3) as u8).collect();
         let src_path = self.get_src_path()?;
         let full_path = src_path.join(&path);
-        fs::write(&full_path, &binary_data1).wrap_err_with(|| format!("Failed to write binary file: {:?}", full_path))?;
+        fs::write(&full_path, &binary_data1)
+            .wrap_err_with(|| format!("Failed to write binary file: {:?}", full_path))?;
         self.git_add_src()?;
         self.run_git(&["commit", "-m", "Initial binary file"])?;
 
@@ -651,18 +696,23 @@ impl RepoTool {
         self.run_git(&["checkout", "-b", &conflict_branch])?;
 
         let binary_data2: Vec<u8> = (0..50).map(|i| (i * 5) as u8).collect();
-        fs::write(&full_path, &binary_data2).wrap_err_with(|| format!("Failed to write binary file: {:?}", full_path))?;
+        fs::write(&full_path, &binary_data2)
+            .wrap_err_with(|| format!("Failed to write binary file: {:?}", full_path))?;
         self.git_add_src()?;
         self.run_git(&["commit", "-m", "Modified binary file on conflict branch"])?;
 
         // Switch back and modify binary file differently
         self.run_git(&["checkout", &original_branch])?;
         let binary_data3: Vec<u8> = (0..50).map(|i| (i * 7) as u8).collect();
-        fs::write(&full_path, &binary_data3).wrap_err_with(|| format!("Failed to write binary file: {:?}", full_path))?;
+        fs::write(&full_path, &binary_data3)
+            .wrap_err_with(|| format!("Failed to write binary file: {:?}", full_path))?;
         self.git_add_src()?;
         self.run_git(&["commit", "-m", "Modified binary file on original branch"])?;
 
-        println!("Created binary conflict scenario between {} and {}", original_branch, conflict_branch);
+        println!(
+            "Created binary conflict scenario between {} and {}",
+            original_branch, conflict_branch
+        );
         println!("Binary file '{}' modified differently on both branches", path);
         println!("To see conflict: git merge {}", conflict_branch);
 
@@ -670,9 +720,7 @@ impl RepoTool {
     }
 
     fn create_mode_conflict(&mut self, filepath: Option<String>) -> Result<()> {
-        let path = filepath.unwrap_or_else(|| {
-            format!("script-{}.sh", self.gen_word())
-        });
+        let path = filepath.unwrap_or_else(|| format!("script-{}.sh", self.gen_word()));
         let initial_content = format!("#!/bin/bash\necho \"Hello from {}\"\n", self.gen_word());
 
         let original_branch = self.get_current_branch()?;
@@ -707,17 +755,21 @@ impl RepoTool {
         self.git_add_src()?;
         self.run_git(&["commit", "-m", "Modified script content on original branch"])?;
 
-        println!("Created mode conflict scenario between {} and {}", original_branch, conflict_branch);
-        println!("File permissions changed on {} while content changed on {}", conflict_branch, original_branch);
+        println!(
+            "Created mode conflict scenario between {} and {}",
+            original_branch, conflict_branch
+        );
+        println!(
+            "File permissions changed on {} while content changed on {}",
+            conflict_branch, original_branch
+        );
         println!("To see conflict: git merge {}", conflict_branch);
 
         Ok(())
     }
 
     fn create_whitespace_conflict(&mut self, filepath: Option<String>) -> Result<()> {
-        let path = filepath.unwrap_or_else(|| {
-            format!("whitespace-{}.txt", self.gen_word())
-        });
+        let path = filepath.unwrap_or_else(|| format!("whitespace-{}.txt", self.gen_word()));
         let base_content = "Line 1\nLine 2\nLine 3".to_string();
 
         let original_branch = self.get_current_branch()?;
@@ -731,7 +783,8 @@ impl RepoTool {
         let conflict_branch = format!("whitespace-{}", self.gen_word());
         self.run_git(&["checkout", "-b", &conflict_branch])?;
 
-        let content_with_spaces = base_content.lines()
+        let content_with_spaces = base_content
+            .lines()
             .map(|line| format!("{}   ", line)) // Add trailing spaces
             .collect::<Vec<_>>()
             .join("\n");
@@ -741,7 +794,8 @@ impl RepoTool {
 
         // Switch back and change indentation
         self.run_git(&["checkout", &original_branch])?;
-        let content_with_tabs = base_content.lines()
+        let content_with_tabs = base_content
+            .lines()
             .map(|line| format!("\t{}", line)) // Add tabs at beginning
             .collect::<Vec<_>>()
             .join("\n");
@@ -749,17 +803,21 @@ impl RepoTool {
         self.git_add_src()?;
         self.run_git(&["commit", "-m", "Added tab indentation on original branch"])?;
 
-        println!("Created whitespace conflict scenario between {} and {}", original_branch, conflict_branch);
-        println!("Trailing spaces added on {} while tab indentation added on {}", conflict_branch, original_branch);
+        println!(
+            "Created whitespace conflict scenario between {} and {}",
+            original_branch, conflict_branch
+        );
+        println!(
+            "Trailing spaces added on {} while tab indentation added on {}",
+            conflict_branch, original_branch
+        );
         println!("To see conflict: git merge {}", conflict_branch);
 
         Ok(())
     }
 
     fn create_case_conflict(&mut self, filepath: Option<String>) -> Result<()> {
-        let base_name = filepath.unwrap_or_else(|| {
-            format!("CaseFile-{}.txt", self.gen_word())
-        });
+        let base_name = filepath.unwrap_or_else(|| format!("CaseFile-{}.txt", self.gen_word()));
         let initial_content = self.gen_content(3, 1);
 
         let original_branch = self.get_current_branch()?;
@@ -801,17 +859,21 @@ impl RepoTool {
         self.git_add_src()?;
         self.run_git(&["commit", "-m", "Renamed file to uppercase on original branch"])?;
 
-        println!("Created case conflict scenario between {} and {}", original_branch, conflict_branch);
-        println!("File renamed to '{}' on {} and '{}' on {}", lowercase_name, conflict_branch, uppercase_name, original_branch);
+        println!(
+            "Created case conflict scenario between {} and {}",
+            original_branch, conflict_branch
+        );
+        println!(
+            "File renamed to '{}' on {} and '{}' on {}",
+            lowercase_name, conflict_branch, uppercase_name, original_branch
+        );
         println!("To see conflict: git merge {}", conflict_branch);
 
         Ok(())
     }
 
     fn create_structural_conflict(&mut self, filepath: Option<String>) -> Result<()> {
-        let path = filepath.unwrap_or_else(|| {
-            "shared/data.txt".to_string()
-        });
+        let path = filepath.unwrap_or_else(|| "shared/data.txt".to_string());
         let initial_content = self.gen_content(3, 1);
 
         let original_branch = self.get_current_branch()?;
@@ -825,7 +887,11 @@ impl RepoTool {
         let conflict_branch = format!("struct-{}", self.gen_word());
         self.run_git(&["checkout", "-b", &conflict_branch])?;
 
-        let new_path = format!("moved/{}/{}", self.gen_word(), Path::new(&path).file_name().unwrap().to_string_lossy());
+        let new_path = format!(
+            "moved/{}/{}",
+            self.gen_word(),
+            Path::new(&path).file_name().unwrap().to_string_lossy()
+        );
         let src_path = self.get_src_path()?;
         let old_full_path = src_path.join(&path);
         let new_full_path = src_path.join(&new_path);
@@ -846,8 +912,14 @@ impl RepoTool {
         self.git_add_src()?;
         self.run_git(&["commit", "-m", "Modified file in original location"])?;
 
-        println!("Created structural conflict scenario between {} and {}", original_branch, conflict_branch);
-        println!("File moved to '{}' on {} while modified in place on {}", new_path, conflict_branch, original_branch);
+        println!(
+            "Created structural conflict scenario between {} and {}",
+            original_branch, conflict_branch
+        );
+        println!(
+            "File moved to '{}' on {} while modified in place on {}",
+            new_path, conflict_branch, original_branch
+        );
         println!("To see conflict: git merge {}", conflict_branch);
 
         Ok(())
@@ -863,11 +935,7 @@ impl RepoTool {
                 self.gen_filepath(3, 1, None)
             };
 
-            let file_content = if let Some(ref c) = content {
-                c.clone()
-            } else {
-                self.gen_content(5, 1)
-            };
+            let file_content = if let Some(ref c) = content { c.clone() } else { self.gen_content(5, 1) };
 
             debug!("Creating file {}/{}: {:?}", i + 1, actual_count, path);
             self.create_file(path.to_str().unwrap(), &file_content)?;
@@ -891,8 +959,7 @@ impl RepoTool {
                 .wrap_err_with(|| format!("Failed to create parent directories for: {:?}", full_path))?;
         }
 
-        fs::write(&full_path, content)
-            .wrap_err_with(|| format!("Failed to write file: {:?}", full_path))?;
+        fs::write(&full_path, content).wrap_err_with(|| format!("Failed to write file: {:?}", full_path))?;
 
         info!("Created file: {:?}", full_path);
         Ok(())
@@ -902,11 +969,12 @@ impl RepoTool {
         let file_path = if let Some(fp) = filepath {
             PathBuf::from(fp)
         } else {
-            self.get_random_file()?.ok_or_else(|| eyre::eyre!("No files found to modify"))?
+            self.get_random_file()?
+                .ok_or_else(|| eyre::eyre!("No files found to modify"))?
         };
 
-        let content = fs::read_to_string(&file_path)
-            .wrap_err_with(|| format!("Failed to read file: {:?}", file_path))?;
+        let content =
+            fs::read_to_string(&file_path).wrap_err_with(|| format!("Failed to read file: {:?}", file_path))?;
 
         let mut lines: Vec<String> = content.lines().map(|s| s.to_string()).collect();
 
@@ -924,14 +992,7 @@ impl RepoTool {
         };
 
         let modification = self.gen_content(1, 1);
-        let actual_modify_type = match modify_type {
-            ModifyType::Append => ModifyType::Append,
-            ModifyType::Prepend => ModifyType::Prepend,
-            ModifyType::Prefix => ModifyType::Prefix,
-            ModifyType::Suffix => ModifyType::Suffix,
-        };
-
-        match actual_modify_type {
+        match &modify_type {
             ModifyType::Append => {
                 lines.insert(line_idx + 1, modification);
             }
@@ -950,7 +1011,7 @@ impl RepoTool {
         fs::write(&file_path, new_content)
             .wrap_err_with(|| format!("Failed to write modified file: {:?}", file_path))?;
 
-        info!("Modified file: {:?} (type: {:?})", file_path, actual_modify_type);
+        info!("Modified file: {:?} (type: {:?})", file_path, modify_type);
         Ok(())
     }
 
@@ -1024,12 +1085,27 @@ fn main() -> Result<()> {
 
     match cli.command {
         Commands::Init { name } => tool.init(name),
-        Commands::Branch { name, force: _, delete: _ } => tool.branch(name, false, false), // Placeholder for home/commit logic
+        Commands::Branch {
+            name,
+            force: _,
+            delete: _,
+        } => tool.branch(name, false, false), // Placeholder for home/commit logic
         Commands::Change { count } => tool.change(count),
         Commands::Commit { message, amend: _ } => tool.commit(message, false), // Placeholder for branch logic
-        Commands::Conflict { filename, conflict_type } => tool.conflict(filename, conflict_type),
-        Commands::Create { count, filename, content } => tool.create(count, filename, content),
-        Commands::Modify { filepath, lineno, modify_type } => {
+        Commands::Conflict {
+            filename,
+            conflict_type,
+        } => tool.conflict(filename, conflict_type),
+        Commands::Create {
+            count,
+            filename,
+            content,
+        } => tool.create(count, filename, content),
+        Commands::Modify {
+            filepath,
+            lineno,
+            modify_type,
+        } => {
             let modify_type_enum = match modify_type.as_str() {
                 "append" => ModifyType::Append,
                 "prepend" => ModifyType::Prepend,
@@ -1038,7 +1114,7 @@ fn main() -> Result<()> {
                 _ => ModifyType::Append, // Default to append if invalid
             };
             tool.modify(filepath, lineno, modify_type_enum)
-        },
+        }
         Commands::Merge => tool.merge(),
         Commands::Munge => tool.munge(),
         Commands::Rebase => tool.rebase(),
@@ -1064,7 +1140,8 @@ mod tests {
     fn setup_git_repo_with_commit() -> (TempDir, RepoTool) {
         let (temp_dir, mut tool) = setup_git_repo();
         // Create initial commit
-        tool.create(1, Some("initial.txt".to_string()), Some("initial content".to_string())).unwrap();
+        tool.create(1, Some("initial.txt".to_string()), Some("initial content".to_string()))
+            .unwrap();
         tool.git_add_src().unwrap();
         tool.run_git(&["commit", "-m", "initial commit"]).unwrap();
         (temp_dir, tool)
@@ -1113,7 +1190,7 @@ mod tests {
         assert!(!content.is_empty());
 
         let lines: Vec<&str> = content.lines().collect();
-        assert!(lines.len() >= 1 && lines.len() <= 3);
+        assert!(!lines.is_empty() && lines.len() <= 3);
         assert!(lines.iter().all(|line| !line.is_empty()));
     }
 
@@ -1184,7 +1261,8 @@ mod tests {
         let (_temp_dir, mut tool) = setup_git_repo();
 
         // Create a file first so we have something to commit
-        tool.create(1, Some("commit-test.txt".to_string()), Some("test content".to_string())).unwrap();
+        tool.create(1, Some("commit-test.txt".to_string()), Some("test content".to_string()))
+            .unwrap();
         tool.git_add_src().unwrap();
 
         let result = tool.commit(Some("test-commit".to_string()), false);
@@ -1201,12 +1279,21 @@ mod tests {
         let (_temp_dir, mut tool) = setup_git_repo();
 
         // Create a file first
-        tool.create(1, Some("modify-test.txt".to_string()), Some("line 1\nline 2\nline 3".to_string())).unwrap();
+        tool.create(
+            1,
+            Some("modify-test.txt".to_string()),
+            Some("line 1\nline 2\nline 3".to_string()),
+        )
+        .unwrap();
 
         let src_path = tool.get_src_path().unwrap();
         let file_path = src_path.join("modify-test.txt");
 
-        let result = tool.modify(Some(file_path.to_string_lossy().to_string()), Some(2), ModifyType::Append);
+        let result = tool.modify(
+            Some(file_path.to_string_lossy().to_string()),
+            Some(2),
+            ModifyType::Append,
+        );
         assert!(result.is_ok());
 
         let content = std::fs::read_to_string(&file_path).unwrap();
@@ -1227,7 +1314,7 @@ mod tests {
 
     #[test]
     fn test_conflict_creation() {
-        let (_temp_dir, mut tool) = setup_git_repo_with_commit();  // Use setup with commit
+        let (_temp_dir, mut tool) = setup_git_repo_with_commit(); // Use setup with commit
 
         let result = tool.conflict(Some("conflict-file.txt".to_string()), ConflictType::Content);
         assert!(result.is_ok());
@@ -1240,7 +1327,7 @@ mod tests {
 
     #[test]
     fn test_command_counting() {
-        let (_temp_dir, mut tool) = setup_git_repo_with_commit();  // Use setup with commit
+        let (_temp_dir, mut tool) = setup_git_repo_with_commit(); // Use setup with commit
 
         let initial_count = tool.command_count;
 
@@ -1317,12 +1404,17 @@ mod tests {
 
         for (i, modify_type) in modify_types.iter().enumerate() {
             let filename = format!("modify-test-{}.txt", i);
-            tool.create(1, Some(filename.clone()), Some("original line".to_string())).unwrap();
+            tool.create(1, Some(filename.clone()), Some("original line".to_string()))
+                .unwrap();
 
             let src_path = tool.get_src_path().unwrap();
             let file_path = src_path.join(&filename);
 
-            let result = tool.modify(Some(file_path.to_string_lossy().to_string()), Some(1), modify_type.clone());
+            let result = tool.modify(
+                Some(file_path.to_string_lossy().to_string()),
+                Some(1),
+                modify_type.clone(),
+            );
             assert!(result.is_ok());
 
             let content = std::fs::read_to_string(&file_path).unwrap();
@@ -1339,11 +1431,16 @@ mod tests {
         assert!(result.is_err());
 
         // Test invalid line number
-        tool.create(1, Some("test.txt".to_string()), Some("line 1".to_string())).unwrap();
+        tool.create(1, Some("test.txt".to_string()), Some("line 1".to_string()))
+            .unwrap();
         let src_path = tool.get_src_path().unwrap();
         let file_path = src_path.join("test.txt");
 
-        let result = tool.modify(Some(file_path.to_string_lossy().to_string()), Some(10), ModifyType::Append);
+        let result = tool.modify(
+            Some(file_path.to_string_lossy().to_string()),
+            Some(10),
+            ModifyType::Append,
+        );
         assert!(result.is_err());
     }
 
