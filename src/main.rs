@@ -1131,7 +1131,7 @@ mod tests {
     fn setup_git_repo() -> (TempDir, RepoTool) {
         let temp_dir = TempDir::new().unwrap();
         let mut tool = RepoTool::new_in_directory("main".to_string(), false, temp_dir.path().to_path_buf()).unwrap();
-        tool.run_git(&["init"]).unwrap();
+        tool.run_git(&["init", "-b", "main"]).unwrap();
         tool.run_git(&["config", "user.name", "Test User"]).unwrap();
         tool.run_git(&["config", "user.email", "test@example.com"]).unwrap();
         (temp_dir, tool)
