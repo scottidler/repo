@@ -14,6 +14,8 @@ static INIT: Once = Once::new();
 // Get the git version from build.rs
 const GIT_VERSION: &str = env!("GIT_DESCRIBE");
 
+const MAX_PATH_ATTEMPTS: u32 = 100;
+
 #[derive(Parser)]
 #[command(name = "repo")]
 #[command(about = "A Git workflow simulation tool")]
@@ -932,7 +934,7 @@ impl RepoTool {
             let path = if let Some(ref fp) = filepath {
                 PathBuf::from(fp)
             } else {
-                self.gen_filepath(3, 1, None)
+                self.gen_unused_filepath()?
             };
 
             let file_content = if let Some(ref c) = content { c.clone() } else { self.gen_content(5, 1) };
@@ -942,6 +944,19 @@ impl RepoTool {
         }
 
         Ok(())
+    }
+
+    // The built-in fallback word list is tiny, so random paths collide often;
+    // without this, fs::write silently overwrites and create(n) yields fewer than n files.
+    fn gen_unused_filepath(&mut self) -> Result<PathBuf> {
+        let src_dir = self.ensure_src_dir()?;
+        for _ in 0..MAX_PATH_ATTEMPTS {
+            let path = self.gen_filepath(3, 1, None);
+            if !src_dir.join(&path).exists() {
+                return Ok(path);
+            }
+        }
+        eyre::bail!("no unused file path found after {} attempts", MAX_PATH_ATTEMPTS)
     }
 
     fn create_file(&mut self, filepath: &str, content: &str) -> Result<()> {
