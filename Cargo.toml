@@ -12,3 +12,6 @@ log = "0.4.27"
 rand = "0.9.1"
 tempfile = "3.20.0"
 uuid = { version = "1.17.0", features = ["v4"] }
+
+[build-dependencies]
+build-version = { git = "https://github.com/tatari-tv/build-version-rs", tag = "v0.1.0", version = "0.1.0" }

@@ -12,7 +12,7 @@ use uuid::Uuid;
 static INIT: Once = Once::new();
 
 // Get the git version from build.rs
-const GIT_VERSION: &str = env!("GIT_DESCRIBE");
+const GIT_VERSION: &str = env!("BUILD_VERSION");
 
 const MAX_PATH_ATTEMPTS: u32 = 100;
 
