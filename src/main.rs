@@ -956,7 +956,7 @@ impl RepoTool {
                 return Ok(path);
             }
         }
-        eyre::bail!("no unused file path found after {} attempts", MAX_PATH_ATTEMPTS)
+        eyre::bail!("no unused file path found after {} attempts", MAX_PATH_ATTEMPTS);
     }
 
     fn create_file(&mut self, filepath: &str, content: &str) -> Result<()> {
